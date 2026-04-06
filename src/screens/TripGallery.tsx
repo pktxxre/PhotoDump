@@ -18,7 +18,7 @@ export default function TripGallery() {
           <MenuIcon size={22} color="var(--primary)" />
         </button>
         <h2 style={{ textAlign: 'left', flex: 1 }}>{TRIP.name}</h2>
-        <button className="switch-map-btn" onClick={() => navigate('/')}>
+        <button className="switch-map-btn" onClick={() => navigate('/explore')}>
           <MapIcon size={14} color="var(--on-surface)" />
           Switch to Map
         </button>

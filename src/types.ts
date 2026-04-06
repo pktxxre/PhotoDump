@@ -38,3 +38,21 @@ export interface QueueItem {
   status: 'uploading' | 'queued'
   progress?: number
 }
+
+export type TripCover =
+  | { type: 'photo'; url: string; dateBadge?: string; label?: string }
+  | { type: 'illustrated'; gradient: string; label: string; sublabel?: string; icon?: string }
+
+export interface TripEntry {
+  id: string
+  name: string
+  location?: string
+  dateLabel: string
+  durationLabel?: string
+  description?: string
+  cover: TripCover
+  members: User[]
+  otherCount?: number
+  isSolo?: boolean
+  route: string
+}

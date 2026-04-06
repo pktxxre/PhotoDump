@@ -1,4 +1,4 @@
-import type { User, Photo, QueueItem, UploadPhoto, DayGroup } from './types'
+import type { User, Photo, QueueItem, UploadPhoto, DayGroup, TripEntry } from './types'
 
 export const USERS: User[] = [
   { id: 'u1', name: 'Alex', initials: 'AB', color: '#9B4132', avatar: 'https://i.pravatar.cc/80?img=3' },
@@ -103,6 +103,66 @@ export const UPLOAD_PHOTOS: UploadPhoto[] = [
 export const QUEUE_ITEMS: QueueItem[] = [
   { filename: 'Coastal_Vista_01.jpg', status: 'uploading', progress: 82 },
   { filename: 'Mountain_Pass.jpg', status: 'queued' },
+]
+
+export const TRIPS: TripEntry[] = [
+  {
+    id: 'tr1',
+    name: 'Sierra Nevada Trek',
+    location: 'California, USA',
+    dateLabel: 'AUG 2023',
+    cover: {
+      type: 'photo',
+      url: 'https://picsum.photos/seed/sierraforest88/800/420',
+      dateBadge: 'AUG 2023',
+      label: 'LIREK',
+    },
+    members: [USERS[0], USERS[1]],
+    route: '/journal',
+  },
+  {
+    id: 'tr2',
+    name: 'Big Sur Solo Run',
+    dateLabel: 'SEPTEMBER 2023',
+    isSolo: true,
+    cover: {
+      type: 'photo',
+      url: 'https://picsum.photos/seed/bigsurcoast77/800/420',
+      dateBadge: 'SEPTEMBER 2023',
+    },
+    members: [USERS[2]],
+    route: '/journal',
+  },
+  {
+    id: 'tr3',
+    name: 'Cascades Canoe',
+    dateLabel: 'July 2023',
+    durationLabel: '4 days',
+    cover: {
+      type: 'illustrated',
+      gradient: 'linear-gradient(160deg, #1a2e1a 0%, #2d4a1e 35%, #c85a1a 70%, #8b3a0a 100%)',
+      label: 'CASCADES',
+      sublabel: 'SAFE WORK',
+      icon: '🛶',
+    },
+    members: [USERS[2], USERS[3]],
+    route: '/explore',
+  },
+  {
+    id: 'tr4',
+    name: 'North Sea Island Hopping',
+    dateLabel: 'AUTUMN 2022',
+    description: 'Exploring the rugged edges of the archipelago, chasing lighthouses and the scent of salt.',
+    cover: {
+      type: 'illustrated',
+      gradient: 'linear-gradient(170deg, #0d1f2d 0%, #1a3a4a 40%, #0f4a4a 70%, #163d3d 100%)',
+      label: 'ISLAND HOPPING',
+      icon: '⛵',
+    },
+    members: [USERS[0], USERS[1]],
+    otherCount: 5,
+    route: '/explore',
+  },
 ]
 
 export const TRIP = {

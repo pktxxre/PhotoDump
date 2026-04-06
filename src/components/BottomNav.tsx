@@ -12,7 +12,7 @@ export default function BottomNav({ active }: Props) {
     <nav className="bottom-nav">
       <button
         className={`nav-item ${active === 'explore' ? 'active' : ''}`}
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/explore')}
       >
         <div className="nav-icon">
           <CompassIcon size={20} />
