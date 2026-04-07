@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import type { LocationPin } from '../screens/MapView'
+import type { LocationPin } from '../types'
 import UserAvatar from './UserAvatar'
 
 const XIcon = () => (
@@ -28,9 +28,10 @@ const GridIcon = () => (
 interface Props {
   location: LocationPin
   onClose: () => void
+  noNavOffset?: boolean
 }
 
-export default function LocationDrawer({ location, onClose }: Props) {
+export default function LocationDrawer({ location, onClose, noNavOffset }: Props) {
   const [view, setView] = useState<'slider' | 'grid'>('slider')
   const [activeIndex, setActiveIndex] = useState(0)
   const sliderRef = useRef<HTMLDivElement>(null)
@@ -55,7 +56,7 @@ export default function LocationDrawer({ location, onClose }: Props) {
       <div className="drawer-backdrop" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="location-drawer">
+      <div className={`location-drawer${noNavOffset ? ' location-drawer--flush' : ''}`}>
         {/* Handle bar */}
         <div className="drawer-handle-bar" />
 

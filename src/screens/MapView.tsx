@@ -6,18 +6,7 @@ import { MenuIcon, SearchIcon, MapIcon } from '../components/Icons'
 import UserAvatar from '../components/UserAvatar'
 import BottomNav from '../components/BottomNav'
 import LocationDrawer from '../components/LocationDrawer'
-import type { User } from '../types'
-
-export interface LocationPin {
-  id: string
-  label: string
-  lat: number
-  lng: number
-  highlight?: boolean
-  primaryThumb: string
-  primaryColor: string
-  photos: { url: string; caption: string; uploader: User }[]
-}
+import type { LocationPin } from '../types'
 
 const LOCATIONS: LocationPin[] = [
   {

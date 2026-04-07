@@ -1,8 +1,15 @@
 import { useNavigate } from 'react-router-dom'
-import { CompassIcon, PlusIcon, JournalIcon } from './Icons'
+import { CompassIcon, JournalIcon } from './Icons'
+
+const AlbumsIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="7" width="16" height="13" rx="2" />
+    <path d="M6 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2" />
+  </svg>
+)
 
 interface Props {
-  active: 'explore' | 'capture' | 'journal'
+  active: 'explore' | 'albums' | 'journal'
 }
 
 export default function BottomNav({ active }: Props) {
@@ -21,13 +28,13 @@ export default function BottomNav({ active }: Props) {
       </button>
 
       <button
-        className={`nav-item capture-tab ${active === 'capture' ? 'active' : ''}`}
-        onClick={() => navigate('/capture')}
+        className={`nav-item ${active === 'albums' ? 'active' : ''}`}
+        onClick={() => navigate('/albums')}
       >
         <div className="nav-icon">
-          <PlusIcon size={22} />
+          <AlbumsIcon size={20} />
         </div>
-        <span>CAPTURE</span>
+        <span>ALBUMS</span>
       </button>
 
       <button

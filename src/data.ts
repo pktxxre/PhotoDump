@@ -1,4 +1,4 @@
-import type { User, Photo, QueueItem, UploadPhoto, DayGroup, TripEntry } from './types'
+import type { User, Photo, QueueItem, UploadPhoto, DayGroup, TripEntry, Album, LocationPin } from './types'
 
 export const USERS: User[] = [
   { id: 'u1', name: 'Alex', initials: 'AB', color: '#9B4132', avatar: 'https://i.pravatar.cc/80?img=3' },
@@ -164,6 +164,134 @@ export const TRIPS: TripEntry[] = [
     route: '/explore',
   },
 ]
+
+export const ALBUMS: Album[] = [
+  {
+    id: 'a1',
+    name: 'Pacific Coast Highway',
+    coverUrl: 'https://picsum.photos/seed/bigsurredwood/600/400',
+    photoCount: 47,
+    members: [USERS[0], USERS[1], USERS[2], USERS[3]],
+    dateLabel: 'Sep 2024',
+    tripId: 'tr1',
+  },
+  {
+    id: 'a2',
+    name: 'Sierra Nevada Trek',
+    coverUrl: 'https://picsum.photos/seed/sierraforest88/600/400',
+    photoCount: 31,
+    members: [USERS[0], USERS[1]],
+    dateLabel: 'Aug 2023',
+    tripId: 'tr1',
+  },
+  {
+    id: 'a3',
+    name: 'Bixby Afternoon',
+    coverUrl: 'https://picsum.photos/seed/bixbycreek/600/400',
+    photoCount: 12,
+    members: [USERS[1], USERS[3]],
+    dateLabel: 'Sep 2024',
+  },
+  {
+    id: 'a4',
+    name: 'Big Sur Solo Run',
+    coverUrl: 'https://picsum.photos/seed/bigsurcoast77/600/400',
+    photoCount: 19,
+    members: [USERS[2]],
+    dateLabel: 'Sep 2023',
+    tripId: 'tr2',
+  },
+  {
+    id: 'a5',
+    name: 'North Sea Island Hopping',
+    coverUrl: 'https://picsum.photos/seed/pfeifferbeach/600/400',
+    photoCount: 88,
+    members: [USERS[0], USERS[1], USERS[3]],
+    dateLabel: 'Autumn 2022',
+    tripId: 'tr4',
+  },
+  {
+    id: 'a6',
+    name: 'Cascades Canoe',
+    coverUrl: 'https://picsum.photos/seed/mossytrail/600/400',
+    photoCount: 23,
+    members: [USERS[2], USERS[3]],
+    dateLabel: 'July 2023',
+    tripId: 'tr3',
+  },
+]
+
+// Generates a flat photo list for an album's Photos tab
+export function getAlbumPhotos(albumId: string, count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `${albumId}-${i}`,
+    url: `https://picsum.photos/seed/${albumId}x${i * 13 + 7}/800/600`,
+    thumb: `https://picsum.photos/seed/${albumId}x${i * 13 + 7}/400/400`,
+    uploader: USERS[i % USERS.length],
+  }))
+}
+
+// Per-album location pins for the map tab
+export const ALBUM_LOCATIONS: Record<string, LocationPin[]> = {
+  a1: [
+    {
+      id: 'bigsur', label: 'Big Sur', lat: 36.270, lng: -121.808,
+      primaryThumb: 'https://picsum.photos/seed/bigsurredwood/200/200',
+      primaryColor: USERS[0].color,
+      photos: [
+        { url: 'https://picsum.photos/seed/bigsurredwood/800/600', caption: 'Into the redwoods.', uploader: USERS[0] },
+        { url: 'https://picsum.photos/seed/bigsurcliff/800/600', caption: 'Cliffside view at dusk.', uploader: USERS[1] },
+        { url: 'https://picsum.photos/seed/bigsurtrail/800/600', caption: 'Morning hike.', uploader: USERS[2] },
+      ],
+    },
+    {
+      id: 'bixby', label: 'Bixby', lat: 36.371, lng: -121.904, highlight: true,
+      primaryThumb: 'https://picsum.photos/seed/bixbycreek/200/200',
+      primaryColor: USERS[1].color,
+      photos: [
+        { url: 'https://picsum.photos/seed/bixbycreek/800/600', caption: 'Bixby Creek Canyon.', uploader: USERS[1] },
+        { url: 'https://picsum.photos/seed/bixbybridge/800/600', caption: 'Bridge from below.', uploader: USERS[3] },
+      ],
+    },
+    {
+      id: 'pfeiffer', label: 'Pfeiffer', lat: 36.195, lng: -121.773,
+      primaryThumb: 'https://picsum.photos/seed/pfeifferbeach/200/200',
+      primaryColor: USERS[3].color,
+      photos: [
+        { url: 'https://picsum.photos/seed/pfeifferbeach/800/600', caption: 'Purple sand at sunset.', uploader: USERS[3] },
+        { url: 'https://picsum.photos/seed/pfeiffersurf/800/600', caption: 'Sea arch.', uploader: USERS[0] },
+        { url: 'https://picsum.photos/seed/pfeiffercamp/800/600', caption: 'Campfire at dusk.', uploader: USERS[2] },
+      ],
+    },
+  ],
+  a2: [
+    {
+      id: 'yosemite', label: 'Yosemite', lat: 37.865, lng: -119.538,
+      primaryThumb: 'https://picsum.photos/seed/yosemitevalley/200/200',
+      primaryColor: USERS[0].color,
+      photos: [
+        { url: 'https://picsum.photos/seed/yosemitevalley/800/600', caption: 'Half Dome at sunrise.', uploader: USERS[0] },
+        { url: 'https://picsum.photos/seed/yosemitefall/800/600', caption: 'Yosemite Falls.', uploader: USERS[1] },
+      ],
+    },
+    {
+      id: 'tahoe', label: 'Lake Tahoe', lat: 39.096, lng: -120.032,
+      primaryThumb: 'https://picsum.photos/seed/laketahoe99/200/200',
+      primaryColor: USERS[1].color,
+      photos: [
+        { url: 'https://picsum.photos/seed/laketahoe99/800/600', caption: 'Crystal clear water.', uploader: USERS[1] },
+        { url: 'https://picsum.photos/seed/tahoeshore/800/600', caption: 'Shoreline at golden hour.', uploader: USERS[0] },
+      ],
+    },
+  ],
+}
+
+// Fallback locations for albums without specific data
+const DEFAULT_LOCATIONS: LocationPin[] = ALBUM_LOCATIONS.a1
+
+export function getAlbumLocations(albumId: string): LocationPin[] {
+  return ALBUM_LOCATIONS[albumId] ?? DEFAULT_LOCATIONS
+}
 
 export const TRIP = {
   name: 'Pacific Coast Highway',

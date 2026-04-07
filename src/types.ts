@@ -39,6 +39,33 @@ export interface QueueItem {
   progress?: number
 }
 
+export interface LocationPhoto {
+  url: string
+  caption: string
+  uploader: User
+}
+
+export interface LocationPin {
+  id: string
+  label: string
+  lat: number
+  lng: number
+  highlight?: boolean
+  primaryThumb: string
+  primaryColor: string
+  photos: LocationPhoto[]
+}
+
+export interface Album {
+  id: string
+  name: string
+  coverUrl: string
+  photoCount: number
+  members: User[]
+  dateLabel: string
+  tripId?: string
+}
+
 export type TripCover =
   | { type: 'photo'; url: string; dateBadge?: string; label?: string }
   | { type: 'illustrated'; gradient: string; label: string; sublabel?: string; icon?: string }

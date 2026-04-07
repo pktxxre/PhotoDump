@@ -119,7 +119,7 @@ export default function UploadQueue() {
         </button>
       </div>
 
-      <BottomNav active="capture" />
+      <BottomNav active="albums" />
     </div>
   )
 }
