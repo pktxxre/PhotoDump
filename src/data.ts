@@ -165,6 +165,29 @@ export const TRIPS: TripEntry[] = [
   },
 ]
 
+export function deleteAlbum(id: string): void {
+  const idx = ALBUMS.findIndex(a => a.id === id)
+  if (idx !== -1) ALBUMS.splice(idx, 1)
+}
+
+export function renameAlbum(id: string, name: string): void {
+  const album = ALBUMS.find(a => a.id === id)
+  if (album) album.name = name || album.name
+}
+
+export function createAlbum(name: string): string {
+  const id = `a${Date.now()}`
+  ALBUMS.unshift({
+    id,
+    name: name || 'Untitled Trip',
+    coverUrl: `https://picsum.photos/seed/${id}/600/400`,
+    photoCount: 0,
+    members: [USERS[0]],
+    dateLabel: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+  })
+  return id
+}
+
 export const ALBUMS: Album[] = [
   {
     id: 'a1',
@@ -221,7 +244,7 @@ export const ALBUMS: Album[] = [
   },
 ]
 
-// Generates a flat photo list for an album's Photos tab
+// Generates a flat photo list (kept for any legacy usage)
 export function getAlbumPhotos(albumId: string, count: number) {
   return Array.from({ length: count }, (_, i) => ({
     id: `${albumId}-${i}`,
@@ -231,66 +254,90 @@ export function getAlbumPhotos(albumId: string, count: number) {
   }))
 }
 
-// Per-album location pins for the map tab
+export interface AlbumDayGroup {
+  dateLabel: string   // e.g. "September 15"
+  location: string    // e.g. "BIG SUR COASTLINE"
+  photos: { id: string; thumb: string; uploader: (typeof USERS)[number] }[]
+}
+
+// Returns photos grouped by day for the album timeline view.
+// Uses the album's location pins as the source of truth for dates/places.
+export function getAlbumDayGroups(albumId: string): AlbumDayGroup[] {
+  const locations = ALBUM_LOCATIONS[albumId]
+  if (!locations) return []
+  const album = ALBUMS.find(a => a.id === albumId)
+
+  // Build a base date from the album's dateLabel (e.g. "Sep 2024")
+  const baseDate = album ? new Date(album.dateLabel) : new Date('Sep 2024')
+  const baseTime = isNaN(baseDate.getTime()) ? new Date() : baseDate
+
+  return locations.map((loc, dayIndex) => {
+    const day = new Date(baseTime)
+    day.setDate(1 + dayIndex)
+    const dateLabel = day.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+    const location = loc.label.toUpperCase()
+
+    // Use the location's photo thumbnails + pad to at least 3 with generated seeds
+    const basePins = loc.photos.map((p, i) => ({
+      id: `${albumId}-${loc.id}-${i}`,
+      thumb: p.url.replace('/800/600', '/400/400'),
+      uploader: p.uploader,
+    }))
+
+    const extra = Array.from({ length: Math.max(0, 3 - basePins.length) }, (_, i) => ({
+      id: `${albumId}-${loc.id}-extra${i}`,
+      thumb: `https://picsum.photos/seed/${albumId}${loc.id}${i * 7}/400/400`,
+      uploader: USERS[(dayIndex + i + 1) % USERS.length],
+    }))
+
+    return { dateLabel, location, photos: [...basePins, ...extra] }
+  })
+}
+
+// All location pins across every album — spread worldwide
 export const ALBUM_LOCATIONS: Record<string, LocationPin[]> = {
-  a1: [
-    {
-      id: 'bigsur', label: 'Big Sur', lat: 36.270, lng: -121.808,
-      primaryThumb: 'https://picsum.photos/seed/bigsurredwood/200/200',
-      primaryColor: USERS[0].color,
-      photos: [
-        { url: 'https://picsum.photos/seed/bigsurredwood/800/600', caption: 'Into the redwoods.', uploader: USERS[0] },
-        { url: 'https://picsum.photos/seed/bigsurcliff/800/600', caption: 'Cliffside view at dusk.', uploader: USERS[1] },
-        { url: 'https://picsum.photos/seed/bigsurtrail/800/600', caption: 'Morning hike.', uploader: USERS[2] },
-      ],
-    },
-    {
-      id: 'bixby', label: 'Bixby', lat: 36.371, lng: -121.904, highlight: true,
-      primaryThumb: 'https://picsum.photos/seed/bixbycreek/200/200',
-      primaryColor: USERS[1].color,
-      photos: [
-        { url: 'https://picsum.photos/seed/bixbycreek/800/600', caption: 'Bixby Creek Canyon.', uploader: USERS[1] },
-        { url: 'https://picsum.photos/seed/bixbybridge/800/600', caption: 'Bridge from below.', uploader: USERS[3] },
-      ],
-    },
-    {
-      id: 'pfeiffer', label: 'Pfeiffer', lat: 36.195, lng: -121.773,
-      primaryThumb: 'https://picsum.photos/seed/pfeifferbeach/200/200',
-      primaryColor: USERS[3].color,
-      photos: [
-        { url: 'https://picsum.photos/seed/pfeifferbeach/800/600', caption: 'Purple sand at sunset.', uploader: USERS[3] },
-        { url: 'https://picsum.photos/seed/pfeiffersurf/800/600', caption: 'Sea arch.', uploader: USERS[0] },
-        { url: 'https://picsum.photos/seed/pfeiffercamp/800/600', caption: 'Campfire at dusk.', uploader: USERS[2] },
-      ],
-    },
+  a1: [ // Pacific Coast Highway
+    { id: 'a1-sf',       label: 'San Francisco',  lat: 37.773,  lng: -122.431, primaryThumb: 'https://picsum.photos/seed/goldengate21/200/200',  primaryColor: USERS[0].color, photos: [{ url: 'https://picsum.photos/seed/goldengate21/800/600',  caption: 'Crossing the bridge at sunrise.', uploader: USERS[0] }, { url: 'https://picsum.photos/seed/coffeemorning/800/600', caption: 'Morning coffee with the map.', uploader: USERS[1] }] },
+    { id: 'a1-bigsur',   label: 'Big Sur',        lat: 36.270,  lng: -121.808, primaryThumb: 'https://picsum.photos/seed/bigsurredwood/200/200', primaryColor: USERS[1].color, photos: [{ url: 'https://picsum.photos/seed/bigsurredwood/800/600', caption: 'Into the redwoods.',            uploader: USERS[1] }, { url: 'https://picsum.photos/seed/bigsurcliff/800/600',   caption: 'Cliffside view at dusk.',      uploader: USERS[2] }] },
+    { id: 'a1-bixby',    label: 'Bixby',          lat: 36.371,  lng: -121.904, primaryThumb: 'https://picsum.photos/seed/bixbycreek/200/200',   primaryColor: USERS[2].color, highlight: true, photos: [{ url: 'https://picsum.photos/seed/bixbycreek/800/600', caption: 'Bixby Creek Canyon.', uploader: USERS[2] }, { url: 'https://picsum.photos/seed/bixbybridge/800/600', caption: 'Bridge from below.', uploader: USERS[3] }] },
+    { id: 'a1-pfeiffer', label: 'Pfeiffer Beach', lat: 36.195,  lng: -121.773, primaryThumb: 'https://picsum.photos/seed/pfeifferbeach/200/200', primaryColor: USERS[3].color, photos: [{ url: 'https://picsum.photos/seed/pfeifferbeach/800/600', caption: 'Purple sand at sunset.', uploader: USERS[3] }, { url: 'https://picsum.photos/seed/pfeiffersurf/800/600', caption: 'Sea arch.', uploader: USERS[0] }] },
   ],
-  a2: [
-    {
-      id: 'yosemite', label: 'Yosemite', lat: 37.865, lng: -119.538,
-      primaryThumb: 'https://picsum.photos/seed/yosemitevalley/200/200',
-      primaryColor: USERS[0].color,
-      photos: [
-        { url: 'https://picsum.photos/seed/yosemitevalley/800/600', caption: 'Half Dome at sunrise.', uploader: USERS[0] },
-        { url: 'https://picsum.photos/seed/yosemitefall/800/600', caption: 'Yosemite Falls.', uploader: USERS[1] },
-      ],
-    },
-    {
-      id: 'tahoe', label: 'Lake Tahoe', lat: 39.096, lng: -120.032,
-      primaryThumb: 'https://picsum.photos/seed/laketahoe99/200/200',
-      primaryColor: USERS[1].color,
-      photos: [
-        { url: 'https://picsum.photos/seed/laketahoe99/800/600', caption: 'Crystal clear water.', uploader: USERS[1] },
-        { url: 'https://picsum.photos/seed/tahoeshore/800/600', caption: 'Shoreline at golden hour.', uploader: USERS[0] },
-      ],
-    },
+  a2: [ // Sierra Nevada Trek
+    { id: 'a2-yosemite', label: 'Yosemite',    lat: 37.865, lng: -119.538, primaryThumb: 'https://picsum.photos/seed/yosemitevalley/200/200', primaryColor: USERS[0].color, photos: [{ url: 'https://picsum.photos/seed/yosemitevalley/800/600', caption: 'Half Dome at sunrise.', uploader: USERS[0] }, { url: 'https://picsum.photos/seed/yosemitefall/800/600', caption: 'Yosemite Falls.',       uploader: USERS[1] }] },
+    { id: 'a2-tahoe',    label: 'Lake Tahoe',  lat: 39.096, lng: -120.032, primaryThumb: 'https://picsum.photos/seed/laketahoe99/200/200',    primaryColor: USERS[1].color, photos: [{ url: 'https://picsum.photos/seed/laketahoe99/800/600',    caption: 'Crystal clear water.',          uploader: USERS[1] }, { url: 'https://picsum.photos/seed/tahoeshore/800/600',   caption: 'Golden hour shore.',          uploader: USERS[0] }] },
+    { id: 'a2-whitney',  label: 'Mt Whitney',  lat: 36.578, lng: -118.292, primaryThumb: 'https://picsum.photos/seed/mtwhitney88/200/200',    primaryColor: USERS[0].color, photos: [{ url: 'https://picsum.photos/seed/mtwhitney88/800/600',    caption: 'Summit view.',                  uploader: USERS[0] }] },
+  ],
+  a3: [ // Bixby Afternoon
+    { id: 'a3-bixby2',   label: 'Bixby Bridge', lat: 36.375, lng: -121.901, primaryThumb: 'https://picsum.photos/seed/bixby2thumb/200/200',  primaryColor: USERS[1].color, photos: [{ url: 'https://picsum.photos/seed/bixby2thumb/800/600',  caption: 'Afternoon light on the bridge.', uploader: USERS[1] }] },
+    { id: 'a3-carmel',   label: 'Carmel',        lat: 36.555, lng: -121.923, primaryThumb: 'https://picsum.photos/seed/carmelbeach/200/200', primaryColor: USERS[3].color, photos: [{ url: 'https://picsum.photos/seed/carmelbeach/800/600', caption: 'White sand Carmel beach.',        uploader: USERS[3] }, { url: 'https://picsum.photos/seed/carmelmission/800/600', caption: 'Carmel Mission at dusk.', uploader: USERS[1] }] },
+  ],
+  a4: [ // Big Sur Solo Run
+    { id: 'a4-mcway',    label: 'McWay Falls',   lat: 36.158, lng: -121.672, primaryThumb: 'https://picsum.photos/seed/mcwayfalls/200/200',  primaryColor: USERS[2].color, photos: [{ url: 'https://picsum.photos/seed/mcwayfalls/800/600',  caption: 'Falls into the ocean.',           uploader: USERS[2] }] },
+    { id: 'a4-julia',    label: 'Julia Pfeiffer', lat: 36.165, lng: -121.669, primaryThumb: 'https://picsum.photos/seed/juliapf/200/200',    primaryColor: USERS[2].color, photos: [{ url: 'https://picsum.photos/seed/juliapf/800/600',    caption: 'Lone cypress at the overlook.',   uploader: USERS[2] }] },
+    { id: 'a4-lucia',    label: 'Lucia',          lat: 35.980, lng: -121.538, primaryThumb: 'https://picsum.photos/seed/luciahwy/200/200',   primaryColor: USERS[2].color, photos: [{ url: 'https://picsum.photos/seed/luciahwy/800/600',   caption: 'Empty highway south of Lucia.',   uploader: USERS[2] }] },
+  ],
+  a5: [ // North Sea Island Hopping
+    { id: 'a5-amsterdam', label: 'Amsterdam',    lat: 52.370,  lng: 4.895,   primaryThumb: 'https://picsum.photos/seed/amsterdam77/200/200', primaryColor: USERS[0].color, photos: [{ url: 'https://picsum.photos/seed/amsterdam77/800/600', caption: 'Canals at dawn.',               uploader: USERS[0] }, { url: 'https://picsum.photos/seed/amsterdam2/800/600',  caption: 'Bikes and bridges.',           uploader: USERS[1] }] },
+    { id: 'a5-shetland',  label: 'Shetland',     lat: 60.530,  lng: -1.265,  primaryThumb: 'https://picsum.photos/seed/shetland33/200/200',  primaryColor: USERS[1].color, photos: [{ url: 'https://picsum.photos/seed/shetland33/800/600',  caption: 'Cliffs at the edge of Europe.',  uploader: USERS[1] }] },
+    { id: 'a5-faroe',     label: 'Faroe Islands', lat: 62.008,  lng: -6.790,  primaryThumb: 'https://picsum.photos/seed/faroe22/200/200',    primaryColor: USERS[3].color, photos: [{ url: 'https://picsum.photos/seed/faroe22/800/600',    caption: 'Grass-roofed village.',          uploader: USERS[3] }, { url: 'https://picsum.photos/seed/faroe2b/800/600',     caption: 'Waterfall into the sea.',      uploader: USERS[0] }] },
+    { id: 'a5-bergen',    label: 'Bergen',        lat: 60.391,  lng: 5.322,   primaryThumb: 'https://picsum.photos/seed/bergen55/200/200',   primaryColor: USERS[0].color, photos: [{ url: 'https://picsum.photos/seed/bergen55/800/600',   caption: 'Bryggen wharf at golden hour.', uploader: USERS[0] }] },
+    { id: 'a5-edinburgh', label: 'Edinburgh',     lat: 55.953,  lng: -3.188,  primaryThumb: 'https://picsum.photos/seed/edinburgh9/200/200', primaryColor: USERS[1].color, photos: [{ url: 'https://picsum.photos/seed/edinburgh9/800/600', caption: 'Arthur\'s Seat in the mist.',    uploader: USERS[1] }] },
+  ],
+  a6: [ // Cascades Canoe
+    { id: 'a6-crater',   label: 'Crater Lake',   lat: 42.944,  lng: -122.109, primaryThumb: 'https://picsum.photos/seed/craterlake/200/200', primaryColor: USERS[2].color, photos: [{ url: 'https://picsum.photos/seed/craterlake/800/600', caption: 'Deepest blue you\'ve ever seen.', uploader: USERS[2] }, { url: 'https://picsum.photos/seed/craterlake2/800/600', caption: 'Wizard Island sunrise.', uploader: USERS[3] }] },
+    { id: 'a6-rainier',  label: 'Mt Rainier',    lat: 46.880,  lng: -121.726, primaryThumb: 'https://picsum.photos/seed/mtrainier/200/200',  primaryColor: USERS[3].color, photos: [{ url: 'https://picsum.photos/seed/mtrainier/800/600',  caption: 'Paradise meadows.',              uploader: USERS[3] }] },
+    { id: 'a6-gorge',    label: 'Columbia Gorge', lat: 45.715, lng: -121.519, primaryThumb: 'https://picsum.photos/seed/columbiagorge/200/200', primaryColor: USERS[2].color, photos: [{ url: 'https://picsum.photos/seed/columbiagorge/800/600', caption: 'Multnomah Falls.',           uploader: USERS[2] }] },
+    { id: 'a6-hood',     label: 'Mt Hood',        lat: 45.373, lng: -121.696, primaryThumb: 'https://picsum.photos/seed/mthood77/200/200',   primaryColor: USERS[3].color, photos: [{ url: 'https://picsum.photos/seed/mthood77/800/600',   caption: 'Snowfield above the treeline.',  uploader: USERS[3] }] },
   ],
 }
 
-// Fallback locations for albums without specific data
-const DEFAULT_LOCATIONS: LocationPin[] = ALBUM_LOCATIONS.a1
-
 export function getAlbumLocations(albumId: string): LocationPin[] {
-  return ALBUM_LOCATIONS[albumId] ?? DEFAULT_LOCATIONS
+  return ALBUM_LOCATIONS[albumId] ?? ALBUM_LOCATIONS.a1
+}
+
+// Aggregate every pin from every album for the global map
+export function getAllLocations(): LocationPin[] {
+  return Object.values(ALBUM_LOCATIONS).flat()
 }
 
 export const TRIP = {

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { USERS, TRIP } from '../data'
+import { USERS, TRIP, createAlbum } from '../data'
 import {
-  XIcon, QuestionIcon, CameraAddIcon, CalendarIcon, CopyIcon,
+  XIcon, QuestionIcon, CameraAddIcon, CopyIcon,
 } from '../components/Icons'
 import UserAvatar from '../components/UserAvatar'
 
@@ -24,7 +24,7 @@ export default function TripCreation() {
         <button className="icon-btn" onClick={() => navigate('/')}>
           <XIcon size={20} color="var(--primary)" />
         </button>
-        <h2>{TRIP.name}</h2>
+        <h2>{tripName || 'Your Trip Name'}</h2>
         <button className="icon-btn">
           <QuestionIcon size={20} color="var(--primary)" />
         </button>
@@ -32,13 +32,7 @@ export default function TripCreation() {
 
       {/* Scrollable form */}
       <div className="creation-scroll">
-        <div>
-          <h1 className="display-title">Where to next?</h1>
-        </div>
-        <p className="display-subtitle">
-          Take a breath, clear your mind, and let the road reveal itself.
-          Your next field journal starts here.
-        </p>
+        <h1 className="display-title">Where to next?</h1>
 
         {/* Cover photo */}
         <div className="cover-photo-area">
@@ -57,16 +51,6 @@ export default function TripCreation() {
             value={tripName}
             onChange={e => setTripName(e.target.value)}
           />
-        </div>
-
-        {/* Date range */}
-        <div className="form-group">
-          <label className="form-label">DATE RANGE</label>
-          <div className="date-range-field">
-            <CalendarIcon size={18} color="var(--outline-variant)" />
-            <span>Select starting day...</span>
-            <span className="end-date">End date</span>
-          </div>
         </div>
 
         {/* Invite friends */}
@@ -92,11 +76,12 @@ export default function TripCreation() {
           </div>
         </div>
 
-        <p className="trip-quote">"The road goes ever on and on..."</p>
-
         <button
           className="btn-primary"
-          onClick={() => navigate('/')}
+          onClick={() => {
+            const id = createAlbum(tripName)
+            navigate(`/album/${id}`)
+          }}
         >
           Begin the Journey &rarr;
         </button>

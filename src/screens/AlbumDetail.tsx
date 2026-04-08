@@ -1,10 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ALBUMS, DAY_GROUPS, getAlbumPhotos, getAlbumLocations } from '../data'
+import { ALBUMS, getAlbumDayGroups, renameAlbum } from '../data'
 import UserAvatar from '../components/UserAvatar'
-import AlbumMap from '../components/AlbumMap'
-
-type Tab = 'photos' | 'map' | 'journal'
 
 const BackIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -12,34 +9,82 @@ const BackIcon = () => (
   </svg>
 )
 
-const MoreIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <circle cx="12" cy="5" r="1" fill="currentColor" /><circle cx="12" cy="12" r="1" fill="currentColor" /><circle cx="12" cy="19" r="1" fill="currentColor" />
+const UploadIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+)
+
+const EditIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
   </svg>
 )
 
 export default function AlbumDetail() {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('photos')
+  const { id }    = useParams<{ id: string }>()
+  const navigate  = useNavigate()
+  const uploadRef = useRef<HTMLInputElement>(null)
+  const inputRef  = useRef<HTMLInputElement>(null)
 
-  const album = ALBUMS.find(a => a.id === id) ?? ALBUMS[0]
-  const photos = getAlbumPhotos(album.id, album.photoCount > 20 ? 18 : album.photoCount)
-  const locations = getAlbumLocations(album.id)
+  const album     = ALBUMS.find(a => a.id === id) ?? ALBUMS[0]
+  const dayGroups = getAlbumDayGroups(album.id)
 
-  // Compute a sensible map center from locations
-  const avgLat = locations.reduce((s, l) => s + l.lat, 0) / locations.length
-  const avgLng = locations.reduce((s, l) => s + l.lng, 0) / locations.length
+  const [editing, setEditing] = useState(false)
+  const [nameVal, setNameVal] = useState(album.name)
+
+  function startEditing() {
+    setNameVal(album.name)
+    setEditing(true)
+    setTimeout(() => {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }, 0)
+  }
+
+  function commitName() {
+    const trimmed = nameVal.trim()
+    if (trimmed) {
+      renameAlbum(album.id, trimmed)
+      album.name = trimmed
+    } else {
+      setNameVal(album.name)
+    }
+    setEditing(false)
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') commitName()
+    if (e.key === 'Escape') { setNameVal(album.name); setEditing(false) }
+  }
 
   return (
     <div className="screen album-detail-screen">
+
       {/* Header */}
       <div className="album-detail-header">
         <button className="icon-btn" onClick={() => navigate('/')}>
           <BackIcon />
         </button>
         <div className="album-detail-title-group">
-          <h2 className="album-detail-name">{album.name}</h2>
+          {editing ? (
+            <input
+              ref={inputRef}
+              className="album-name-input"
+              value={nameVal}
+              onChange={e => setNameVal(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={handleKeyDown}
+            />
+          ) : (
+            <button className="album-detail-name-btn" onClick={startEditing}>
+              <h2 className="album-detail-name">{album.name}</h2>
+              <span className="album-name-edit-icon"><EditIcon /></span>
+            </button>
+          )}
           <span className="album-detail-date">{album.dateLabel}</span>
         </div>
         <div className="album-detail-header-right">
@@ -48,68 +93,59 @@ export default function AlbumDetail() {
               <UserAvatar key={u.id} user={u} size={26} />
             ))}
           </div>
-          <button className="icon-btn"><MoreIcon /></button>
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="album-tabs-bar">
-        {(['photos', 'map', 'journal'] as Tab[]).map(t => (
-          <button
-            key={t}
-            className={`album-tab-btn ${tab === t ? 'active' : ''}`}
-            onClick={() => setTab(t)}
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </div>
+      {/* Hidden file input */}
+      <input
+        ref={uploadRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        style={{ display: 'none' }}
+        onChange={() => {}}
+      />
 
-      {/* Tab content */}
-      <div className="album-tab-content">
-        {tab === 'photos' && (
-          <div className="album-photos-grid">
-            {photos.map(p => (
-              <div key={p.id} className="album-photo-cell">
-                <img src={p.thumb} alt="" loading="lazy" />
-                <div className="album-photo-avatar">
-                  <UserAvatar user={p.uploader} size={20} />
+      {/* Content */}
+      {dayGroups.length === 0 ? (
+        <div className="album-empty-state">
+          <p className="album-empty-title">No photos yet</p>
+          <p className="album-empty-sub">Upload your first photos or videos to get started.</p>
+          <button className="btn-primary" onClick={() => uploadRef.current?.click()}>
+            <UploadIcon /> Upload Photos
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="album-timeline-scroll">
+            {dayGroups.map(group => (
+              <div key={group.dateLabel + group.location} className="album-day-group">
+                <div className="album-day-header">
+                  <span className="album-day-date">{group.dateLabel}</span>
+                  <span className="album-day-location">{group.location}</span>
+                </div>
+                <div className="album-day-grid">
+                  {group.photos.map(p => (
+                    <div key={p.id} className="album-photo-cell">
+                      <img src={p.thumb} alt="" loading="lazy" />
+                      <div className="album-photo-avatar">
+                        <UserAvatar user={p.uploader} size={20} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
           </div>
-        )}
 
-        {tab === 'map' && (
-          <AlbumMap
-            locations={locations}
-            center={[avgLat, avgLng]}
-            zoom={9}
-          />
-        )}
-
-        {tab === 'journal' && (
-          <div className="album-journal-scroll">
-            {DAY_GROUPS.map(group => (
-              <div key={group.dateLabel} className="day-section">
-                <div className="day-meta">{group.dateLabel}</div>
-                <h2 className="day-title">{group.dayTitle}</h2>
-                {group.photos.map(photo => (
-                  <div key={photo.id} className="gallery-photo-card">
-                    <img src={photo.url} alt={photo.caption} loading="lazy" />
-                    <div className="gallery-card-meta">
-                      {photo.caption
-                        ? <p className="gallery-caption">{photo.caption}</p>
-                        : <p className="gallery-location">{photo.location.name}</p>
-                      }
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
+          <div className="album-upload-bar">
+            <button className="btn-primary" onClick={() => uploadRef.current?.click()}>
+              <UploadIcon /> Upload New Photos
+            </button>
           </div>
-        )}
-      </div>
+        </>
+      )}
+
     </div>
   )
 }
