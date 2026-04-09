@@ -47,7 +47,7 @@ export default function AlbumMap({ locations, center, zoom }: Props) {
       </MapContainer>
 
       {active && (
-        <LocationDrawer location={active} onClose={() => setActive(null)} noNavOffset />
+        <LocationDrawer title={active.label} photos={active.photos} onClose={() => setActive(null)} noNavOffset />
       )}
     </div>
   )

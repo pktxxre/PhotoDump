@@ -1,4 +1,4 @@
-import type { User, Photo, QueueItem, UploadPhoto, DayGroup, TripEntry, Album, LocationPin } from './types'
+import type { User, Photo, QueueItem, UploadPhoto, DayGroup, TripEntry, Album, LocationPin, AlbumCluster } from './types'
 
 export const USERS: User[] = [
   { id: 'u1', name: 'Alex', initials: 'AB', color: '#9B4132', avatar: 'https://i.pravatar.cc/80?img=3' },
@@ -338,6 +338,24 @@ export function getAlbumLocations(albumId: string): LocationPin[] {
 // Aggregate every pin from every album for the global map
 export function getAllLocations(): LocationPin[] {
   return Object.values(ALBUM_LOCATIONS).flat()
+}
+
+// One cluster per album — averaged lat/lng, all photos merged
+export function getAlbumClusters(): AlbumCluster[] {
+  return Object.entries(ALBUM_LOCATIONS).map(([albumId, pins]) => {
+    const album = ALBUMS.find(a => a.id === albumId)
+    const lat = pins.reduce((s, p) => s + p.lat, 0) / pins.length
+    const lng = pins.reduce((s, p) => s + p.lng, 0) / pins.length
+    return {
+      albumId,
+      albumName: album?.name ?? albumId,
+      lat,
+      lng,
+      primaryThumb: pins[0].primaryThumb,
+      primaryColor: pins[0].primaryColor,
+      photos: pins.flatMap(p => p.photos),
+    }
+  })
 }
 
 export const TRIP = {

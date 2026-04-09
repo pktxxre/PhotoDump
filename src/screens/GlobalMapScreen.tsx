@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import L from 'leaflet'
-import { getAllLocations, ALBUMS } from '../data'
-import type { LocationPin } from '../types'
+import { getAlbumClusters, ALBUMS } from '../data'
+import type { AlbumCluster } from '../types'
 import LocationDrawer from '../components/LocationDrawer'
 import LocationPermissionModal, { shouldShowLocationModal } from '../components/LocationPermissionModal'
 
@@ -23,19 +23,17 @@ function makeSquarePin(thumbUrl: string, userColor: string): L.DivIcon {
 }
 
 export default function GlobalMapScreen() {
-  const navigate  = useNavigate()
-  const [activeLocation, setActiveLocation] = useState<LocationPin | null>(null)
+  const navigate = useNavigate()
+  const [activeCluster, setActiveCluster] = useState<AlbumCluster | null>(null)
   const [showModal, setShowModal] = useState(() => shouldShowLocationModal())
 
-  // Computed once per render — updates automatically if data changes
-  const locations  = getAllLocations()
+  const clusters = getAlbumClusters()
   const albumCount = ALBUMS.length
-  const stopCount  = locations.length
+  const stopCount = clusters.length
 
   return (
     <div className="screen global-map-screen">
 
-      {/* Fixed header — lives outside MapContainer so it never moves with the map */}
       <div className="global-map-header">
         <button className="icon-btn" onClick={() => navigate('/')}>
           <BackIcon />
@@ -48,11 +46,8 @@ export default function GlobalMapScreen() {
         </div>
       </div>
 
-      {/* Map fills remaining height below the header */}
       <div className="global-map-body">
         <MapContainer
-          // Global overview — center roughly on the Atlantic so both Americas
-          // and Europe/Africa are visible, with room to pan either direction
           center={[20, 0]}
           zoom={3}
           minZoom={2}
@@ -69,28 +64,21 @@ export default function GlobalMapScreen() {
             noWrap={true}
           />
 
-          {/*
-           * For each world copy offset, render every location as a square photo pin.
-           * The latitude is unchanged; only the longitude shifts by ±360°.
-           * All copies of the same location store the original location object
-           * so the drawer always shows the correct data regardless of which
-           * world copy was clicked.
-           */}
-          {locations.map(loc => (
+          {clusters.map(cluster => (
             <Marker
-              key={loc.id}
-              position={[loc.lat, loc.lng]}
-              icon={makeSquarePin(loc.primaryThumb, loc.primaryColor)}
-              eventHandlers={{ click: () => setActiveLocation(loc) }}
+              key={cluster.albumId}
+              position={[cluster.lat, cluster.lng]}
+              icon={makeSquarePin(cluster.primaryThumb, cluster.primaryColor)}
+              eventHandlers={{ click: () => setActiveCluster(cluster) }}
             />
           ))}
         </MapContainer>
 
-        {/* Single drawer instance — shown when any pin is clicked */}
-        {activeLocation && (
+        {activeCluster && (
           <LocationDrawer
-            location={activeLocation}
-            onClose={() => setActiveLocation(null)}
+            title={activeCluster.albumName}
+            photos={activeCluster.photos}
+            onClose={() => setActiveCluster(null)}
             noNavOffset
           />
         )}

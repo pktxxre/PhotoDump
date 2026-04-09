@@ -158,7 +158,8 @@ export default function MapView() {
       {/* Location photo drawer */}
       {activeLocation && (
         <LocationDrawer
-          location={activeLocation}
+          title={activeLocation.label}
+          photos={activeLocation.photos}
           onClose={() => setActiveLocation(null)}
         />
       )}

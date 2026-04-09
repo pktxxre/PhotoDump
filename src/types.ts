@@ -56,6 +56,16 @@ export interface LocationPin {
   photos: LocationPhoto[]
 }
 
+export interface AlbumCluster {
+  albumId: string
+  albumName: string
+  lat: number
+  lng: number
+  primaryThumb: string
+  primaryColor: string
+  photos: LocationPhoto[]
+}
+
 export interface Album {
   id: string
   name: string

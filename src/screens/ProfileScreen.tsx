@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { USERS, ALBUMS } from '../data'
+import ColorPicker from '../components/ColorPicker'
+import { supabase } from '../lib/supabase'
 
 const me = USERS[0]
-
-const MAP_COLORS = ['#1a3327', '#b8932a', '#9B4132', '#4a6d8c', '#a8707a']
 
 const BackIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -44,7 +44,8 @@ const TOTAL_PHOTOS = 482
 
 export default function ProfileScreen() {
   const navigate = useNavigate()
-  const [mapColor, setMapColor] = useState(MAP_COLORS[0])
+  const [mapColor, setMapColor] = useState('1a3327')
+  const [mapAlpha, setMapAlpha] = useState(1)
 
   return (
     <div className="screen profile-screen">
@@ -61,7 +62,12 @@ export default function ProfileScreen() {
 
         {/* Avatar */}
         <div className="profile-avatar-wrap">
-          <img className="profile-avatar-img" src={me.avatar} alt={me.name} />
+          <img
+            className="profile-avatar-img"
+            src={me.avatar}
+            alt={me.name}
+            style={{ borderColor: `#${mapColor}` }}
+          />
           <button className="profile-avatar-edit" aria-label="Edit photo">
             <PencilIcon />
           </button>
@@ -89,17 +95,12 @@ export default function ProfileScreen() {
             <span className="profile-section-title">Your Map Color</span>
             <span className="profile-section-hint">Visible on shared routes</span>
           </div>
-          <div className="profile-colors">
-            {MAP_COLORS.map(c => (
-              <button
-                key={c}
-                className={`profile-color-swatch ${mapColor === c ? 'selected' : ''}`}
-                style={{ '--swatch-color': c } as React.CSSProperties}
-                onClick={() => setMapColor(c)}
-                aria-label={`Select color ${c}`}
-              />
-            ))}
-          </div>
+          <div className="profile-color-preview" style={{ background: `#${mapColor}` }} />
+          <ColorPicker
+            value={mapColor}
+            alpha={mapAlpha}
+            onChange={(hex, a) => { setMapColor(hex); setMapAlpha(a) }}
+          />
         </div>
 
         {/* Travel Buddies */}
@@ -136,7 +137,10 @@ export default function ProfileScreen() {
         </div>
 
         {/* Log out */}
-        <button className="profile-logout">
+        <button
+          className="profile-logout"
+          onClick={async () => { await supabase.auth.signOut(); navigate('/login') }}
+        >
           <span>Log Out</span>
           <LogoutIcon />
         </button>
