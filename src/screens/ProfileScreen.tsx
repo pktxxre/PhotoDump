@@ -1,10 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { USERS, ALBUMS } from '../data'
 import ColorPicker from '../components/ColorPicker'
 import { supabase } from '../lib/supabase'
-
-const me = USERS[0]
+import { useAlbums } from '../hooks/useAlbums'
 
 const BackIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -40,12 +38,20 @@ const BUDDIES = [
   { id: 'b4', name: 'Cass',   avatar: 'https://i.pravatar.cc/80?img=20' },
 ]
 
-const TOTAL_PHOTOS = 482
-
 export default function ProfileScreen() {
   const navigate = useNavigate()
   const [mapColor, setMapColor] = useState('1a3327')
   const [mapAlpha, setMapAlpha] = useState(1)
+  const { albums } = useAlbums()
+  const [userEmail, setUserEmail] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? '')
+      setAvatarUrl(data.user?.user_metadata?.avatar_url ?? null)
+    })
+  }, [])
 
   return (
     <div className="screen profile-screen">
@@ -62,30 +68,24 @@ export default function ProfileScreen() {
 
         {/* Avatar */}
         <div className="profile-avatar-wrap">
-          <img
-            className="profile-avatar-img"
-            src={me.avatar}
-            alt={me.name}
-            style={{ borderColor: `#${mapColor}` }}
-          />
+          {avatarUrl
+            ? <img className="profile-avatar-img" src={avatarUrl} alt="Profile" style={{ borderColor: `#${mapColor}` }} />
+            : <div className="profile-avatar-placeholder" style={{ borderColor: `#${mapColor}` }}>{userEmail.slice(0, 2).toUpperCase()}</div>
+          }
           <button className="profile-avatar-edit" aria-label="Edit photo">
             <PencilIcon />
           </button>
         </div>
 
         {/* Name + subtitle */}
-        <h1 className="profile-name">Alex River</h1>
+        <h1 className="profile-name">{userEmail.split('@')[0] || 'Explorer'}</h1>
         <p className="profile-subtitle">Wanderer &amp; Chronicler</p>
 
         {/* Stats */}
         <div className="profile-stats">
           <div className="profile-stat-card">
-            <span className="profile-stat-num">{ALBUMS.length}</span>
-            <span className="profile-stat-label">SHARED ALBUMS</span>
-          </div>
-          <div className="profile-stat-card">
-            <span className="profile-stat-num">{TOTAL_PHOTOS}</span>
-            <span className="profile-stat-label">PHOTOS</span>
+            <span className="profile-stat-num">{albums.length}</span>
+            <span className="profile-stat-label">ALBUMS</span>
           </div>
         </div>
 

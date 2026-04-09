@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ALBUMS, USERS, deleteAlbum } from '../data'
-import UserAvatar from '../components/UserAvatar'
+import { useAlbums } from '../hooks/useAlbums'
+import { deleteAlbum } from '../lib/albums'
+import { supabase } from '../lib/supabase'
 
 const PlusIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -22,22 +23,21 @@ const DotsIcon = () => (
   </svg>
 )
 
-function AlbumTileMenu({ albumId, onClose }: { albumId: string; onClose: () => void }) {
+function AlbumTileMenu({ albumId, onClose, onDeleted }: { albumId: string; onClose: () => void; onDeleted: () => void }) {
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose()
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose()
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [onClose])
 
-  function handleDelete(e: React.MouseEvent) {
+  async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
-    deleteAlbum(albumId)
+    await deleteAlbum(albumId)
+    onDeleted()
     onClose()
   }
 
@@ -50,43 +50,42 @@ function AlbumTileMenu({ albumId, onClose }: { albumId: string; onClose: () => v
 
   return (
     <div ref={menuRef} className="album-tile-menu">
-      <button className="album-tile-menu-item" onMouseDown={handleCopyLink}>
-        Copy Link
-      </button>
-      <button className="album-tile-menu-item album-tile-menu-delete" onMouseDown={handleDelete}>
-        Delete
-      </button>
+      <button className="album-tile-menu-item" onMouseDown={handleCopyLink}>Copy Link</button>
+      <button className="album-tile-menu-item album-tile-menu-delete" onMouseDown={handleDelete}>Delete</button>
     </div>
   )
 }
 
 export default function AlbumsScreen() {
   const navigate = useNavigate()
+  const { albums, loading, reload } = useAlbums()
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
-  const [, forceUpdate] = useState(0)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const meta = data.user?.user_metadata
+      setAvatarUrl(meta?.avatar_url ?? null)
+    })
+  }, [])
 
   function handleDotsClick(e: React.MouseEvent, albumId: string) {
     e.stopPropagation()
     setMenuOpenId(prev => prev === albumId ? null : albumId)
   }
 
-  function closeMenu() {
-    setMenuOpenId(null)
-    forceUpdate(n => n + 1)
-  }
-
   return (
     <div className="screen albums-root-screen">
-      {/* Header */}
       <div className="albums-root-header">
         <button className="albums-profile-btn" onClick={() => navigate('/profile')}>
-          <img src={USERS[0].avatar} alt={USERS[0].name} className="albums-profile-avatar" />
+          {avatarUrl
+            ? <img src={avatarUrl} alt="Profile" className="albums-profile-avatar" />
+            : <div className="albums-profile-initials">Me</div>}
         </button>
         <span className="albums-root-brand">Field Journal</span>
         <div className="albums-header-actions">
           <button className="albums-map-btn" onClick={() => navigate('/map')}>
-            <MapPinIcon />
-            <span>Map</span>
+            <MapPinIcon /><span>Map</span>
           </button>
           <button className="albums-new-btn" onClick={() => navigate('/create')}>
             <PlusIcon />
@@ -94,49 +93,57 @@ export default function AlbumsScreen() {
         </div>
       </div>
 
-      {/* Title */}
       <div className="albums-root-hero">
         <h1 className="albums-root-display">Your Albums</h1>
-        <p className="albums-root-sub">{ALBUMS.length} shared collections</p>
+        <p className="albums-root-sub">
+          {loading ? 'Loading…' : `${albums.length} collection${albums.length !== 1 ? 's' : ''}`}
+        </p>
       </div>
 
-      {/* 2-col square grid */}
       <div className="albums-root-scroll">
-        <div className="albums-root-grid">
-          {ALBUMS.map(album => (
-            <div
-              key={album.id}
-              className="album-tile"
-              onClick={() => navigate(`/album/${album.id}`)}
-            >
-              <div className="album-tile-cover">
-                <img src={album.coverUrl} alt={album.name} loading="lazy" />
-                <div className="album-tile-count">{album.photoCount}</div>
-                <button
-                  className="album-tile-dots"
-                  onClick={e => handleDotsClick(e, album.id)}
-                  aria-label="Album options"
-                >
-                  <DotsIcon />
-                </button>
-                {menuOpenId === album.id && (
-                  <AlbumTileMenu albumId={album.id} onClose={closeMenu} />
-                )}
-              </div>
-              <div className="album-tile-info">
-                <p className="album-tile-name">{album.name}</p>
-                <div className="album-tile-members">
-                  {album.members.slice(0, 3).map(u => (
-                    <UserAvatar key={u.id} user={u} size={20} />
-                  ))}
-                  {album.members.length > 3 && (
-                    <span className="album-tile-overflow">+{album.members.length - 3}</span>
+        {!loading && albums.length === 0 ? (
+          <div className="albums-empty-state">
+            <p className="albums-empty-title">No albums yet</p>
+            <p className="albums-empty-sub">Tap + to start your first journey.</p>
+          </div>
+        ) : (
+          <div className="albums-root-grid">
+            {albums.map(album => (
+              <div
+                key={album.id}
+                className="album-tile"
+                onClick={() => navigate(`/album/${album.id}`)}
+              >
+                <div className="album-tile-cover">
+                  {album.coverUrl
+                    ? <img src={album.coverUrl} alt={album.name} loading="lazy" />
+                    : <div className="album-tile-placeholder" />}
+                  <div className="album-tile-count">{album.photoCount}</div>
+                  <button
+                    className="album-tile-dots"
+                    onClick={e => handleDotsClick(e, album.id)}
+                    aria-label="Album options"
+                  >
+                    <DotsIcon />
+                  </button>
+                  {menuOpenId === album.id && (
+                    <AlbumTileMenu
+                      albumId={album.id}
+                      onClose={() => setMenuOpenId(null)}
+                      onDeleted={reload}
+                    />
                   )}
                 </div>
+                <div className="album-tile-info">
+                  <p className="album-tile-name">{album.name}</p>
+                  <p className="album-tile-date">
+                    {album.createdAt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
