@@ -42,6 +42,7 @@ export function useAlbumPhotos(albumId: string) {
   const [loading, setLoading] = useState(true)
 
   const fetch = useCallback(async () => {
+    await new Promise(r => setTimeout(r, 500))
     const { data } = await supabase
       .from('album_photos')
       .select('*')

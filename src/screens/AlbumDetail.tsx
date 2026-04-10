@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { fetchAlbum, renameAlbum, updateAlbumCover } from '../lib/albums'
 import { uploadPhoto, extractMeta } from '../lib/uploadPhoto'
 import { useAlbumPhotos } from '../hooks/useAlbumPhotos'
+import PhotoViewer from '../components/PhotoViewer'
 import type { Album } from '../lib/albums'
 import type { AlbumDayGroup } from '../data'
 
@@ -70,6 +71,12 @@ export default function AlbumDetail() {
   const [editing, setEditing]  = useState(false)
   const [nameVal, setNameVal]  = useState('')
   const [localPhotos, setLocalPhotos] = useState<LocalPhoto[]>([])
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null)
+  const [skeletonCount, setSkeletonCount] = useState(() => {
+    if (!id) return 6
+    const cached = localStorage.getItem(`photodump_photo_count_${id}`)
+    return cached ? Math.max(3, parseInt(cached, 10)) : 6
+  })
 
   const { dayGroups: remoteGroups, loading: photosLoading, refetch } = useAlbumPhotos(id ?? '')
 
@@ -83,6 +90,14 @@ export default function AlbumDetail() {
   }, [id])
 
   useEffect(() => () => { localPhotos.forEach(p => URL.revokeObjectURL(p.blobUrl)) }, [])
+
+  useEffect(() => {
+    if (!photosLoading && id && remoteGroups.length > 0) {
+      const total = remoteGroups.reduce((s, g) => s + g.photos.length, 0)
+      localStorage.setItem(`photodump_photo_count_${id}`, String(total))
+      setSkeletonCount(total)
+    }
+  }, [photosLoading, remoteGroups, id])
 
   const isUploading = localPhotos.some(p => !p.done && !p.error)
   const allDone     = localPhotos.length > 0 && localPhotos.every(p => p.done || p.error)
@@ -193,11 +208,38 @@ export default function AlbumDetail() {
 
   if (!album) return (
     <div className="screen album-detail-screen">
-      <div className="album-empty-state"><p className="album-empty-sub">Loading…</p></div>
+      <div className="album-detail-header">
+        <button className="icon-btn" onClick={() => navigate('/')}>
+          <BackIcon />
+        </button>
+        <div className="album-detail-title-group">
+          <div className="album-skeleton-title skeleton-block" />
+          <div className="album-skeleton-date skeleton-block" />
+        </div>
+        <div style={{ width: 36 }} />
+      </div>
+      <div className="album-timeline-scroll">
+        <div className="album-skeleton-group">
+          <div className="album-skeleton-day-label skeleton-block" />
+          <div className="album-day-grid">
+            {Array.from({ length: skeletonCount }, (_, i) => (
+              <div key={i} className="album-skeleton-cell skeleton-block" />
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="album-upload-bar">
+        <div className="album-skeleton-upload-btn skeleton-block" />
+      </div>
     </div>
   )
 
   const hasContent = mergedGroups.length > 0
+
+  // Flat array of all photos for the viewer, in display order
+  const allViewerPhotos = mergedGroups.flatMap(g =>
+    g.photos.map(p => ({ url: p.thumb, uploaderName: p.uploader.name, uploaderAvatar: p.uploader.avatar }))
+  )
 
   return (
     <div className="screen album-detail-screen">
@@ -251,7 +293,23 @@ export default function AlbumDetail() {
         </div>
       )}
 
-      {!photosLoading && !hasContent ? (
+      {photosLoading && !hasContent ? (
+        <>
+          <div className="album-timeline-scroll">
+            <div className="album-skeleton-group">
+              <div className="album-skeleton-day-label skeleton-block" />
+              <div className="album-day-grid">
+                {Array.from({ length: skeletonCount }, (_, i) => (
+                  <div key={i} className="album-skeleton-cell skeleton-block" />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="album-upload-bar">
+            <div className="album-skeleton-upload-btn skeleton-block" />
+          </div>
+        </>
+      ) : !photosLoading && !hasContent ? (
         <div className="album-empty-state">
           <p className="album-empty-title">No photos yet</p>
           <p className="album-empty-sub">Upload your first photos or videos to get started.</p>
@@ -262,7 +320,9 @@ export default function AlbumDetail() {
       ) : (
         <>
           <div className="album-timeline-scroll">
-            {mergedGroups.map(group => (
+            {(() => {
+              let flatIdx = 0
+              return mergedGroups.map(group => (
               <div key={group.dateLabel + group.location} className="album-day-group">
                 <div className="album-day-header">
                   <span className="album-day-date">{group.dateLabel}</span>
@@ -270,9 +330,10 @@ export default function AlbumDetail() {
                 </div>
                 <div className="album-day-grid">
                   {group.photos.map(p => {
+                    const photoIdx = flatIdx++
                     const local = localPhotos.find(lp => lp.localId === p.id)
                     return (
-                      <div key={p.id} className="album-photo-cell">
+                      <div key={p.id} className="album-photo-cell" onClick={() => setViewerIndex(photoIdx)}>
                         <img src={p.thumb} alt="" loading="lazy" />
                         {local && !local.done && (
                           <div className="photo-upload-overlay">
@@ -307,7 +368,8 @@ export default function AlbumDetail() {
                   })}
                 </div>
               </div>
-            ))}
+            ))
+            })()}
           </div>
 
           <div className="album-upload-bar">
@@ -321,6 +383,14 @@ export default function AlbumDetail() {
             </button>
           </div>
         </>
+      )}
+
+      {viewerIndex !== null && (
+        <PhotoViewer
+          photos={allViewerPhotos}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+        />
       )}
     </div>
   )

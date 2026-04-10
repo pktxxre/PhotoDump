@@ -12,6 +12,8 @@ export async function fetchAlbums(): Promise<Album[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
+  await new Promise(r => setTimeout(r, 500))
+
   const { data, error } = await supabase
     .from('albums')
     .select('id, name, cover_url, created_at')
@@ -69,6 +71,7 @@ export async function updateAlbumCover(albumId: string, coverUrl: string): Promi
 }
 
 export async function fetchAlbum(id: string): Promise<Album | null> {
+  await new Promise(r => setTimeout(r, 500))
   const { data, error } = await supabase
     .from('albums')
     .select('id, name, cover_url, created_at')

@@ -41,35 +41,30 @@ function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
 // ── Component ─────────────────────────────────────────────────
 interface Props {
   value: string     // 6-char hex, no #
-  alpha: number     // 0–1
-  onChange: (hex: string, alpha: number) => void
+  onChange: (hex: string) => void
 }
 
-export default function ColorPicker({ value, alpha: alphaProp, onChange }: Props) {
+export default function ColorPicker({ value, onChange }: Props) {
   function initHsv(): [number, number, number] {
     const rgb = hexToRgb(value)
     return rgb ? rgbToHsv(...rgb) : [0, 0, 0]
   }
 
   const [hsv, setHsv] = useState<[number, number, number]>(initHsv)
-  const [alpha, setAlpha] = useState(alphaProp)
   const [hexInput, setHexInput] = useState(value.toUpperCase())
 
-  const sbRef    = useRef<HTMLDivElement>(null)
-  const hueRef   = useRef<HTMLDivElement>(null)
-  const alphaRef = useRef<HTMLDivElement>(null)
+  const sbRef  = useRef<HTMLDivElement>(null)
+  const hueRef = useRef<HTMLDivElement>(null)
 
   const [h, s, v] = hsv
-  const [r, g, b] = hsvToRgb(h, s, v)
-  const hex = rgbToHex(r, g, b)
   const [pr, pg, pb] = hsvToRgb(h, 1, 1)
   const pureHex = rgbToHex(pr, pg, pb)
 
-  function emit(newHsv: [number, number, number], newAlpha: number) {
+  function emit(newHsv: [number, number, number]) {
     const [nr, ng, nb] = hsvToRgb(...newHsv)
     const newHex = rgbToHex(nr, ng, nb)
     setHexInput(newHex)
-    onChange(newHex, newAlpha)
+    onChange(newHex)
   }
 
   // Generic pointer drag helper
@@ -96,20 +91,14 @@ export default function ColorPicker({ value, alpha: alphaProp, onChange }: Props
     const nv = Math.max(0, Math.min(1, 1 - (cy - rect.top) / rect.height))
     const newHsv: [number, number, number] = [h, ns, nv]
     setHsv(newHsv)
-    emit(newHsv, alpha)
+    emit(newHsv)
   })
 
   const handleHue = makeDragger(hueRef, (cx, _, rect) => {
     const nh = Math.max(0, Math.min(360, ((cx - rect.left) / rect.width) * 360))
     const newHsv: [number, number, number] = [nh, s, v]
     setHsv(newHsv)
-    emit(newHsv, alpha)
-  })
-
-  const handleAlpha = makeDragger(alphaRef, (cx, _, rect) => {
-    const na = Math.max(0, Math.min(1, (cx - rect.left) / rect.width))
-    setAlpha(na)
-    emit(hsv, na)
+    emit(newHsv)
   })
 
   function handleHexChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -120,15 +109,9 @@ export default function ColorPicker({ value, alpha: alphaProp, onChange }: Props
       if (rgb) {
         const newHsv = rgbToHsv(...rgb)
         setHsv(newHsv)
-        onChange(rgbToHex(...rgb).toUpperCase(), alpha)
+        onChange(rgbToHex(...rgb).toUpperCase())
       }
     }
-  }
-
-  function handleAlphaInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const na = Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) / 100
-    setAlpha(na)
-    emit(hsv, na)
   }
 
   return (
@@ -150,27 +133,27 @@ export default function ColorPicker({ value, alpha: alphaProp, onChange }: Props
 
       {/* Sliders */}
       <div className="cp-sliders">
-        {/* Hue */}
         <div ref={hueRef} className="cp-hue-track" onPointerDown={handleHue}>
           <div
             className="cp-slider-thumb"
             style={{ left: `${(h / 360) * 100}%`, background: `#${pureHex}` }}
           />
         </div>
+      </div>
 
-        {/* Alpha */}
-        <div ref={alphaRef} className="cp-alpha-track" onPointerDown={handleAlpha}>
-          <div
-            className="cp-alpha-fill"
-            style={{ background: `linear-gradient(to right, transparent, #${hex})` }}
-          />
-          <div
-            className="cp-slider-thumb"
-            style={{ left: `${alpha * 100}%`, background: `rgba(${r},${g},${b},${alpha})` }}
+      {/* Hex input */}
+      <div className="cp-inputs">
+        <div className="cp-hex-row">
+          <span className="cp-label">#</span>
+          <input
+            className="cp-hex-input"
+            value={hexInput}
+            onChange={handleHexChange}
+            maxLength={6}
+            spellCheck={false}
           />
         </div>
       </div>
-
     </div>
   )
 }

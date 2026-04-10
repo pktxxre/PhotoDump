@@ -56,11 +56,36 @@ function AlbumTileMenu({ albumId, onClose, onDeleted }: { albumId: string; onClo
   )
 }
 
+const SKELETON_COUNT_KEY = 'photodump_album_count'
+
+function AlbumSkeleton() {
+  return (
+    <div className="album-tile-skeleton">
+      <div className="album-tile-skeleton-cover skeleton-block" />
+      <div className="album-tile-skeleton-info">
+        <div className="album-tile-skeleton-name skeleton-block" />
+        <div className="album-tile-skeleton-date skeleton-block" />
+      </div>
+    </div>
+  )
+}
+
 export default function AlbumsScreen() {
   const navigate = useNavigate()
   const { albums, loading, reload } = useAlbums()
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [skeletonCount, setSkeletonCount] = useState(() => {
+    const cached = localStorage.getItem(SKELETON_COUNT_KEY)
+    return cached ? parseInt(cached, 10) : 4
+  })
+
+  useEffect(() => {
+    if (!loading && albums.length > 0) {
+      localStorage.setItem(SKELETON_COUNT_KEY, String(albums.length))
+      setSkeletonCount(albums.length)
+    }
+  }, [loading, albums.length])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -96,7 +121,7 @@ export default function AlbumsScreen() {
       <div className="albums-root-hero">
         <h1 className="albums-root-display">Your Albums</h1>
         <p className="albums-root-sub">
-          {loading ? 'Loading…' : `${albums.length} collection${albums.length !== 1 ? 's' : ''}`}
+          {!loading && `${albums.length} collection${albums.length !== 1 ? 's' : ''}`}
         </p>
       </div>
 
@@ -108,7 +133,9 @@ export default function AlbumsScreen() {
           </div>
         ) : (
           <div className="albums-root-grid">
-            {albums.map(album => (
+            {loading
+              ? Array.from({ length: skeletonCount }, (_, i) => <AlbumSkeleton key={i} />)
+              : albums.map(album => (
               <div
                 key={album.id}
                 className="album-tile"
@@ -143,6 +170,7 @@ export default function AlbumsScreen() {
               </div>
             ))}
           </div>
+
         )}
       </div>
     </div>
