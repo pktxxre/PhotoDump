@@ -70,7 +70,7 @@ export default function LoginScreen() {
           {error && <p className="auth-error">{error}</p>}
 
           <button className="auth-cta" type="submit" disabled={loading}>
-            {loading ? 'Signing in…' : 'Join the Adventure →'}
+            {loading ? 'Signing in…' : 'Sign In →'}
           </button>
         </form>
 

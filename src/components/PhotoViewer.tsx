@@ -24,6 +24,7 @@ export default function PhotoViewer({ photos, initialIndex, onClose }: Props) {
   const touchStartY = useRef<number | null>(null)
   const isDragging  = useRef(false)
   const chromeTimer = useRef<ReturnType<typeof setTimeout>>()
+  const backdropRef = useRef<HTMLDivElement>(null)
 
   const photo = photos[index]
 
@@ -70,21 +71,28 @@ export default function PhotoViewer({ photos, initialIndex, onClose }: Props) {
     resetChromeTimer()
   }, [index, photos.length])
 
+  // Attach touchmove as non-passive so e.preventDefault() works
+  useEffect(() => {
+    const el = backdropRef.current
+    if (!el) return
+    function onTouchMove(e: TouchEvent) {
+      if (touchStartX.current === null || touchStartY.current === null) return
+      const dx = e.touches[0].clientX - touchStartX.current
+      const dy = e.touches[0].clientY - touchStartY.current
+      if (!isDragging.current && Math.abs(dy) > Math.abs(dx)) return
+      isDragging.current = true
+      e.preventDefault()
+      setOffset(dx)
+    }
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => el.removeEventListener('touchmove', onTouchMove)
+  }, [])
+
   // Touch handling
   function onTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
     isDragging.current = false
-  }
-
-  function onTouchMove(e: React.TouchEvent) {
-    if (touchStartX.current === null || touchStartY.current === null) return
-    const dx = e.touches[0].clientX - touchStartX.current
-    const dy = e.touches[0].clientY - touchStartY.current
-    if (!isDragging.current && Math.abs(dy) > Math.abs(dx)) return // vertical scroll
-    isDragging.current = true
-    e.preventDefault()
-    setOffset(dx)
   }
 
   function onTouchEnd(e: React.TouchEvent) {
@@ -126,9 +134,9 @@ export default function PhotoViewer({ photos, initialIndex, onClose }: Props) {
 
   return (
     <div
+      ref={backdropRef}
       className="pv-backdrop"
       onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}

@@ -29,6 +29,7 @@ const EditIcon = () => (
 interface LocalPhoto {
   localId: string
   blobUrl: string
+  uploadedUrl: string | null
   dateTaken: Date | null
   progress: number
   done: boolean
@@ -105,20 +106,15 @@ export default function AlbumDetail() {
     ? localPhotos.reduce((s, p) => s + p.progress, 0) / localPhotos.length
     : 0
 
-  // Once all uploads are done AND remote data has loaded, clear local blobs
-  // that now exist in remoteGroups (to avoid duplicates)
+  // As soon as an uploaded photo's URL appears in remote data, drop the local blob
   useEffect(() => {
-    if (!allDone) return
-    const remoteIds = new Set(remoteGroups.flatMap(g => g.photos.map(p => p.id)))
-    const t = setTimeout(() => {
-      setLocalPhotos(prev => {
-        // Keep photos that failed OR are not yet in remote data
-        const keep = prev.filter(p => p.error || !remoteIds.size)
-        return keep
-      })
-    }, 1500)
-    return () => clearTimeout(t)
-  }, [allDone, remoteGroups])
+    if (localPhotos.length === 0) return
+    const remoteUrls = new Set(remoteGroups.flatMap(g => g.photos.map(p => p.thumb)))
+    setLocalPhotos(prev => {
+      const next = prev.filter(p => p.error || !p.uploadedUrl || !remoteUrls.has(p.uploadedUrl))
+      return next.length === prev.length ? prev : next
+    })
+  }, [remoteGroups])
 
   // Always show all local photos (blob URLs are always valid for the session)
   const localGroups = groupLocalByDay(localPhotos)
@@ -126,7 +122,7 @@ export default function AlbumDetail() {
   // Merge local + remote, deduplicate by dateLabel
   const mergedGroups: AlbumDayGroup[] = []
   const seen = new Set<string>()
-  for (const g of [...localGroups, ...remoteGroups]) {
+  for (const g of [...remoteGroups, ...localGroups]) {
     if (seen.has(g.dateLabel)) {
       const existing = mergedGroups.find(x => x.dateLabel === g.dateLabel)!
       const ids = new Set(existing.photos.map(p => p.id))
@@ -148,6 +144,7 @@ export default function AlbumDetail() {
         return {
           localId: `local-${Date.now()}-${Math.random()}`,
           blobUrl: URL.createObjectURL(file),
+          uploadedUrl: null,
           dateTaken: meta.dateTaken ?? null,
           progress: 0,
           done: false,
@@ -164,7 +161,7 @@ export default function AlbumDetail() {
       })
       setLocalPhotos(prev =>
         prev.map(p => p.localId === localId
-          ? { ...p, progress: 100, done: true, error: !result }
+          ? { ...p, progress: 100, done: true, error: !result, uploadedUrl: result?.url ?? null }
           : p)
       )
       // Set cover photo if this is the first upload

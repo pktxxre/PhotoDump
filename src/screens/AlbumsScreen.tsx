@@ -107,8 +107,7 @@ export default function AlbumsScreen() {
             ? <img src={avatarUrl} alt="Profile" className="albums-profile-avatar" />
             : <div className="albums-profile-initials">Me</div>}
         </button>
-        <span className="albums-root-brand">Field Journal</span>
-        <div className="albums-header-actions">
+<div className="albums-header-actions">
           <button className="albums-map-btn" onClick={() => navigate('/map')}>
             <MapPinIcon /><span>Map</span>
           </button>
@@ -120,9 +119,10 @@ export default function AlbumsScreen() {
 
       <div className="albums-root-hero">
         <h1 className="albums-root-display">Your Albums</h1>
-        <p className="albums-root-sub">
-          {!loading && `${albums.length} collection${albums.length !== 1 ? 's' : ''}`}
-        </p>
+        {loading
+          ? <div className="albums-root-sub-skeleton skeleton-block" />
+          : <p className="albums-root-sub">{albums.length} collection{albums.length !== 1 ? 's' : ''}</p>
+        }
       </div>
 
       <div className="albums-root-scroll">

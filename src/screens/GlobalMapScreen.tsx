@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { supabase } from '../lib/supabase'
+import { useAlbums } from '../hooks/useAlbums'
 import LocationDrawer from '../components/LocationDrawer'
 import LocationPermissionModal, { shouldShowLocationModal } from '../components/LocationPermissionModal'
 import type { LocationPhoto } from '../types'
@@ -14,9 +15,19 @@ const BackIcon = () => (
     <polyline points="15 18 9 12 15 6" />
   </svg>
 )
+const FilterIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+  </svg>
+)
 const ChevronIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="6 9 12 15 18 9" />
+  </svg>
+)
+const CloseIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 )
 
@@ -64,50 +75,17 @@ function ZoomWatcher({ onZoom }: { onZoom: (z: number) => void }) {
   return null
 }
 
-function FilterDropdown({
-  label, options, value, onChange,
-}: {
-  label: string
-  options: { id: string; name: string; avatar?: string }[]
-  value: string
-  onChange: (id: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const selected = options.find(o => o.id === value)
-
-  return (
-    <div className="map-filter-wrap">
-      <button className={`map-filter-chip ${open ? 'open' : ''}`} onClick={() => setOpen(v => !v)}>
-        {selected?.avatar && <img className="map-filter-avatar" src={selected.avatar} alt="" />}
-        <span className="map-filter-label">{selected?.name ?? label}</span>
-        <ChevronIcon />
-      </button>
-      {open && (
-        <div className="map-filter-menu">
-          {options.map(opt => (
-            <button
-              key={opt.id}
-              className={`map-filter-option ${value === opt.id ? 'active' : ''}`}
-              onMouseDown={() => { onChange(opt.id); setOpen(false) }}
-            >
-              {opt.avatar && <img className="map-filter-option-avatar" src={opt.avatar} alt="" />}
-              {opt.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function GlobalMapScreen() {
   const navigate = useNavigate()
   const [zoom, setZoom]           = useState(3)
   const [photos, setPhotos]       = useState<GeoPhoto[]>([])
   const [activePin, setActivePin] = useState<{ title: string; photos: LocationPhoto[] } | null>(null)
   const [showModal, setShowModal] = useState(() => shouldShowLocationModal())
-  const [albumFilter, setAlbumFilter]     = useState('all')
-  const [uploaderFilter, setUploaderFilter] = useState('all')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [checkedAlbums, setCheckedAlbums]       = useState<Set<string>>(new Set())
+  const [checkedUploaders, setCheckedUploaders] = useState<Set<string>>(new Set())
+
+  const { albums: userAlbums } = useAlbums()
 
   useEffect(() => {
     supabase
@@ -130,26 +108,85 @@ export default function GlobalMapScreen() {
       })
   }, [])
 
+  // Auto-check any new user albums as they load
+  useEffect(() => {
+    if (userAlbums.length === 0) return
+    setCheckedAlbums(prev => {
+      const next = new Set(prev)
+      let changed = false
+      for (const a of userAlbums) {
+        if (!next.has(a.id)) { next.add(a.id); changed = true }
+      }
+      return changed ? next : prev
+    })
+  }, [userAlbums])
+
+  // Auto-check any new albums/uploaders found in geotagged photos
+  useEffect(() => {
+    if (photos.length === 0) return
+    setCheckedAlbums(prev => {
+      const next = new Set(prev)
+      let changed = false
+      for (const p of photos) {
+        if (!next.has(p.albumId)) { next.add(p.albumId); changed = true }
+      }
+      return changed ? next : prev
+    })
+    setCheckedUploaders(prev => {
+      const next = new Set(prev)
+      let changed = false
+      for (const p of photos) {
+        const uid = p.uploaderId ?? p.uploaderName
+        if (!next.has(uid)) { next.add(uid); changed = true }
+      }
+      return changed ? next : prev
+    })
+  }, [photos])
+
   const isExpanded = zoom >= SPLIT_ZOOM
 
-  // Unique albums + uploaders for filters
-  const albumOptions = [
-    { id: 'all', name: 'Album' },
-    ...Array.from(new Map(photos.map(p => [p.albumId, p.albumName])).entries())
-      .map(([id, name]) => ({ id, name })),
-  ]
-  const uploaderOptions = [
-    { id: 'all', name: 'Person' },
-    ...Array.from(new Map(photos.map(p => [p.uploaderId ?? p.uploaderName, p.uploaderName])).entries())
-      .map(([id, name]) => ({ id: id ?? name, name })),
-  ]
+  // All albums: user's albums + any from geotagged photos not already listed
+  const allAlbums = (() => {
+    const map = new Map<string, string>()
+    for (const a of userAlbums) map.set(a.id, a.name)
+    for (const p of photos) if (!map.has(p.albumId)) map.set(p.albumId, p.albumName)
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
+  })()
+
+  // All uploaders derived from geotagged photos
+  const allUploaders = Array.from(
+    new Map(photos.map(p => [p.uploaderId ?? p.uploaderName, p.uploaderName])).entries()
+  ).map(([id, name]) => ({ id, name }))
+
+  // Count of items that are deselected (for the badge)
+  const deselectedCount =
+    allAlbums.filter(a => !checkedAlbums.has(a.id)).length +
+    allUploaders.filter(u => !checkedUploaders.has(u.id)).length
+
+  function toggleAlbum(id: string) {
+    setCheckedAlbums(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function toggleUploader(id: string) {
+    setCheckedUploaders(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function resetFilters() {
+    setCheckedAlbums(new Set(allAlbums.map(a => a.id)))
+    setCheckedUploaders(new Set(allUploaders.map(u => u.id)))
+  }
 
   // Apply filters
-  const filtered = photos.filter(p => {
-    if (albumFilter !== 'all' && p.albumId !== albumFilter) return false
-    if (uploaderFilter !== 'all' && (p.uploaderId ?? p.uploaderName) !== uploaderFilter) return false
-    return true
-  })
+  const filtered = photos.filter(p =>
+    checkedAlbums.has(p.albumId) &&
+    checkedUploaders.has(p.uploaderId ?? p.uploaderName)
+  )
 
   // Build clusters (one per album, averaged position)
   const clusterMap = new Map<string, { photos: GeoPhoto[] }>()
@@ -164,8 +201,7 @@ export default function GlobalMapScreen() {
     return {
       albumId,
       albumName: ps[0].albumName,
-      lat,
-      lng,
+      lat, lng,
       thumb: ps[0].url,
       photos: ps.map(p => ({
         url: p.url,
@@ -190,12 +226,19 @@ export default function GlobalMapScreen() {
         <div className="map-header-title">
           <div className="trip-name-map">All Trips</div>
         </div>
-        <div className="map-filters-row">
-          <FilterDropdown label="Album" options={albumOptions} value={albumFilter}
-            onChange={v => { setAlbumFilter(v); setActivePin(null) }} />
-          <FilterDropdown label="Person" options={uploaderOptions} value={uploaderFilter}
-            onChange={v => { setUploaderFilter(v); setActivePin(null) }} />
-        </div>
+
+        {/* Single filter chip */}
+        <button
+          className={`map-filter-chip${filterOpen ? ' open' : ''}`}
+          onClick={() => setFilterOpen(v => !v)}
+        >
+          <FilterIcon />
+          <span className="map-filter-label">Filters</span>
+          {deselectedCount > 0 && (
+            <span className="map-filter-badge">{deselectedCount}</span>
+          )}
+          <ChevronIcon />
+        </button>
       </div>
 
       <div className="global-map-body">
@@ -246,6 +289,61 @@ export default function GlobalMapScreen() {
         )}
         {showModal && <LocationPermissionModal onDismiss={() => setShowModal(false)} />}
       </div>
+
+      {/* Filter panel */}
+      {filterOpen && (
+        <>
+          <div className="map-filter-backdrop" onClick={() => setFilterOpen(false)} />
+          <div className="map-filter-panel">
+            <div className="drawer-handle-bar" />
+            <div className="map-filter-panel-header">
+              <span className="map-filter-panel-title">Filters</span>
+              {deselectedCount > 0 && (
+                <button className="map-filter-reset" onClick={resetFilters}>Reset</button>
+              )}
+              <button className="map-filter-close" onClick={() => setFilterOpen(false)}>
+                <CloseIcon />
+              </button>
+            </div>
+
+            {/* Albums */}
+            <div className="map-filter-section">
+              <p className="map-filter-section-title">Albums</p>
+              {allAlbums.length === 0 ? (
+                <p className="map-filter-empty">No albums yet</p>
+              ) : allAlbums.map(a => (
+                <label key={a.id} className="map-filter-row">
+                  <input
+                    type="checkbox"
+                    className="map-filter-checkbox"
+                    checked={checkedAlbums.has(a.id)}
+                    onChange={() => toggleAlbum(a.id)}
+                  />
+                  <span className="map-filter-row-name">{a.name}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* People */}
+            {allUploaders.length > 0 && (
+              <div className="map-filter-section">
+                <p className="map-filter-section-title">People</p>
+                {allUploaders.map(u => (
+                  <label key={u.id} className="map-filter-row">
+                    <input
+                      type="checkbox"
+                      className="map-filter-checkbox"
+                      checked={checkedUploaders.has(u.id)}
+                      onChange={() => toggleUploader(u.id)}
+                    />
+                    <span className="map-filter-row-name">{u.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
