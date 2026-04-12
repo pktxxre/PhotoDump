@@ -846,6 +846,17 @@ img { display: block; }
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, var(--surface-container-high), var(--surface-container-highest));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.album-tile-empty-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
 }
 
 /* Albums empty state */
@@ -3194,6 +3205,179 @@ body {
   font-family: var(--sans);
   color: #c0392b;
   cursor: pointer;
+}
+
+/* ─── Album Expanded ─────────────────────────────────────────── */
+.ae-overlay {
+  position: absolute;
+  z-index: 300;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  transition:
+    top    0.38s cubic-bezier(0.32, 0.72, 0, 1),
+    left   0.38s cubic-bezier(0.32, 0.72, 0, 1),
+    width  0.38s cubic-bezier(0.32, 0.72, 0, 1),
+    height 0.38s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ae-overlay.ae-dragging { transition: none; }
+
+/* ── Top half: cover photo ── */
+.ae-hero {
+  flex: 0 0 46%;
+  position: relative;
+  overflow: hidden;
+  background: #000;
+}
+
+.ae-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ae-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--surface-container-high);
+}
+
+/* Gradient: top for back-button, bottom for album meta legibility */
+.ae-cover-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.42) 0%,
+    transparent 30%,
+    transparent 55%,
+    rgba(0,0,0,0.52) 100%
+  );
+  pointer-events: none;
+}
+
+/* Back button */
+.ae-back {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top, 14px));
+  left: 14px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.38);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity 0.18s 0.22s ease, transform 0.18s 0.22s ease;
+}
+.ae-open .ae-back { opacity: 1; transform: scale(1); }
+
+/* Album name + date at bottom of hero */
+.ae-cover-meta {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0 18px 14px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s 0.24s ease, transform 0.2s 0.24s ease;
+}
+.ae-open .ae-cover-meta { opacity: 1; transform: translateY(0); }
+
+.ae-cover-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+  margin: 0 0 3px;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.4);
+}
+.ae-cover-date {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.75);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+/* When not open (entering or exiting), hero expands to fill the overlay
+   so the animation looks like just the cover photo growing/shrinking */
+.ae-overlay:not(.ae-open) .ae-hero { flex: 1; }
+.ae-overlay:not(.ae-open) .ae-back,
+.ae-overlay:not(.ae-open) .ae-cover-meta { opacity: 0 !important; }
+
+/* ── Bottom half: photos on surface background ── */
+.ae-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+}
+.ae-overlay:not(.ae-open) .ae-body {
+  display: none;
+}
+
+/* Scrollable photo area */
+.ae-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  background: var(--surface);
+}
+
+/* Grid overrides: flush, square, no radius */
+.ae-scroll .album-day-group  { margin-bottom: 0; background: var(--surface); }
+.ae-scroll .album-day-grid   { gap: 0; }
+.ae-scroll .album-photo-cell { border-radius: 0; background: var(--surface); }
+.ae-scroll .album-photo-cell:hover img { transform: none; }
+
+/* Date header: keep original serif style, just add padding and solid background */
+.ae-scroll .album-day-header {
+  padding: 8px 14px 6px;
+  margin-bottom: 0;
+  background: var(--surface);
+}
+
+/* Skeleton grid */
+.ae-skeleton-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2px;
+  padding: 8px 0;
+}
+.ae-skeleton-cell { aspect-ratio: 1; }
+
+/* Empty state */
+.ae-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 48px 24px;
+}
+.ae-empty-title { font-size: 16px; font-weight: 600; color: var(--on-surface); margin: 0; }
+.ae-empty-sub   { font-size: 13px; color: var(--on-surface-variant); margin: 0; }
+
+/* Upload bar pinned to bottom */
+.ae-upload-bar {
+  flex-shrink: 0;
+  padding: 10px 16px max(14px, env(safe-area-inset-bottom, 14px));
+  background: var(--surface);
+  border-top: 1px solid var(--outline-variant);
 }
 
 /* ─── Photo Viewer ───────────────────────────────────────────── */

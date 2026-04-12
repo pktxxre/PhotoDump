@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAlbums } from '../hooks/useAlbums'
 import { deleteAlbum } from '../lib/albums'
 import { supabase } from '../lib/supabase'
+import AlbumExpanded from '../components/AlbumExpanded'
+import type { Album } from '../lib/albums'
 
 const PlusIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -73,8 +75,10 @@ function AlbumSkeleton() {
 export default function AlbumsScreen() {
   const navigate = useNavigate()
   const { albums, loading, reload } = useAlbums()
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [menuOpenId, setMenuOpenId]     = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl]       = useState<string | null>(null)
+  const [expandedAlbum, setExpandedAlbum]   = useState<Album | null>(null)
+  const [expandOriginRect, setExpandOriginRect] = useState<DOMRect | null>(null)
   const [skeletonCount, setSkeletonCount] = useState(() => {
     const cached = localStorage.getItem(SKELETON_COUNT_KEY)
     return cached ? parseInt(cached, 10) : 4
@@ -99,6 +103,35 @@ export default function AlbumsScreen() {
     setMenuOpenId(prev => prev === albumId ? null : albumId)
   }
 
+  function handleTileClick(e: React.MouseEvent<HTMLDivElement>, album: Album) {
+    // Use the cover image div — not the whole tile — so the animation
+    // originates from and returns to exactly the square photo area
+    const coverEl  = e.currentTarget.querySelector('.album-tile-cover') as HTMLElement | null
+    const target   = coverEl ?? e.currentTarget
+    const tileRect = target.getBoundingClientRect()
+    const frameRect = e.currentTarget.closest('.phone-frame')?.getBoundingClientRect()
+    if (!frameRect) return
+    const rel = new DOMRect(
+      tileRect.left - frameRect.left,
+      tileRect.top  - frameRect.top,
+      tileRect.width,
+      tileRect.height,
+    )
+    setExpandOriginRect(rel)
+    setExpandedAlbum(album)
+  }
+
+  function handleExpansionClose() {
+    setExpandedAlbum(null)
+    setExpandOriginRect(null)
+  }
+
+  function handleAlbumUpdate(patch: Partial<Album>) {
+    if (!expandedAlbum) return
+    // Patch the expanded album local state so cover updates immediately
+    setExpandedAlbum(prev => prev ? { ...prev, ...patch } : null)
+  }
+
   return (
     <div className="screen albums-root-screen">
       <div className="albums-root-header">
@@ -107,7 +140,7 @@ export default function AlbumsScreen() {
             ? <img src={avatarUrl} alt="Profile" className="albums-profile-avatar" />
             : <div className="albums-profile-initials">Me</div>}
         </button>
-<div className="albums-header-actions">
+        <div className="albums-header-actions">
           <button className="albums-map-btn" onClick={() => navigate('/map')}>
             <MapPinIcon /><span>Map</span>
           </button>
@@ -139,13 +172,21 @@ export default function AlbumsScreen() {
               <div
                 key={album.id}
                 className="album-tile"
-                onClick={() => navigate(`/album/${album.id}`)}
+                onClick={e => handleTileClick(e, album)}
               >
                 <div className="album-tile-cover">
                   {album.coverUrl
                     ? <img src={album.coverUrl} alt={album.name} loading="lazy" />
-                    : <div className="album-tile-placeholder" />}
-                  <div className="album-tile-count">{album.photoCount}</div>
+                    : (
+                      <div className="album-tile-placeholder">
+                        {album.photoCount === 0 && (
+                          <div className="album-tile-empty-label">Add photos</div>
+                        )}
+                      </div>
+                    )}
+                  {album.photoCount > 0 && (
+                    <div className="album-tile-count">{album.photoCount}</div>
+                  )}
                   <button
                     className="album-tile-dots"
                     onClick={e => handleDotsClick(e, album.id)}
@@ -170,9 +211,18 @@ export default function AlbumsScreen() {
               </div>
             ))}
           </div>
-
         )}
       </div>
+
+      {expandedAlbum && expandOriginRect && (
+        <AlbumExpanded
+          key={expandedAlbum.id}
+          album={expandedAlbum}
+          originRect={expandOriginRect}
+          onClose={handleExpansionClose}
+          onAlbumUpdate={handleAlbumUpdate}
+        />
+      )}
     </div>
   )
 }
